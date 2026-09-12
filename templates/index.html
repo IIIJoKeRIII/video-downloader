@@ -1,0 +1,1196 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Video Downloader</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%233DDC84'/%3E%3Cg stroke='%230F1B14' stroke-width='7' stroke-linecap='round' stroke-linejoin='round' fill='none'%3E%3Cpath d='M32 15V37'/%3E%3Cpath d='M21 30 32 41 43 30'/%3E%3Cpath d='M18 49H46' stroke-width='6'/%3E%3C/g%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg-rail: #0F1B14;
+    --bg-content: #14171A;
+    --surface: #1B1F23;
+    --surface-sunk: #101316;
+    --border: rgba(255,255,255,.06);
+    --border-strong: rgba(255,255,255,.12);
+    --text: #ECEFEC;
+    --text-dim: #8B9490;
+    --text-faint: #65706b;
+    --text-faintest: #55625b;
+    --accent: #3DDC84;
+    --accent-ink: #0e2016;
+    --accent-soft: rgba(61,220,132,.15);
+    --accent-ghost: rgba(61,220,132,.04);
+    --accent-line: rgba(61,220,132,.3);
+    --info: #2E6FE0;
+    --danger: #FF6B6B;
+    --danger-bg: rgba(255,107,107,.08);
+    --danger-line: rgba(255,107,107,.25);
+    --warn: #E8B339;
+    --warn-bg: rgba(232,179,57,.1);
+    --warn-line: rgba(232,179,57,.3);
+    --ok-bg: rgba(61,220,132,.08);
+    --ok-line: rgba(61,220,132,.25);
+    --disabled-bg: #2A2F33;
+    --disabled-text: #6b7570;
+    --r-field: 9px;
+    --r-card: 10px;
+    --r-drop: 14px;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    height: 100%;
+    background: var(--bg-content);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+  }
+  body[data-desktop="false"] {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .window {
+    display: flex;
+  }
+  body[data-desktop="false"] .window {
+    width: 100%;
+    max-width: 660px;
+    height: 600px;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 20px 50px rgba(0,0,0,.18);
+  }
+  body[data-desktop="true"] .window {
+    width: 100vw;
+    height: 100vh;
+  }
+  .rail {
+    width: 60px;
+    flex: none;
+    background: var(--bg-rail);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 32px 0 18px;
+    gap: 22px;
+  }
+  .navitem {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    font-family: inherit;
+  }
+  .navpill {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .navdot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--text-faintest);
+  }
+  .navitem span {
+    font-size: 9px;
+    color: var(--text-dim);
+  }
+  .navitem.active .navpill { background: var(--accent-soft); }
+  .navitem.active .navdot { background: var(--accent); }
+  .navitem.active span { color: var(--text); }
+
+  .content {
+    flex: 1;
+    /* Сверху больше, чем по бокам: в макете над контентом был нарисованный
+       титлбар, а в окне его место занимает рамка Windows. */
+    padding: 40px 26px 26px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+  }
+  .content::-webkit-scrollbar { width: 8px; }
+  .content::-webkit-scrollbar-thumb { background: var(--surface); border-radius: 4px; }
+
+  .screen { display: none; }
+  .screen.active { display: block; }
+
+  .scrhead {
+    font-size: 16px;
+    font-weight: 700;
+    margin: 0 0 18px;
+    color: var(--text);
+  }
+
+  .banner {
+    border-radius: var(--r-card);
+    padding: 10px 12px;
+    font-size: 12px;
+    margin-bottom: 10px;
+  }
+  .banner-warn { background: var(--warn-bg); border: 1px solid var(--warn-line); color: var(--warn); }
+  .banner-accent { background: rgba(61,220,132,.1); border: 1px solid var(--accent-line); display: none; }
+  .banner-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+  .banner-row span { font-size: 12px; color: var(--text); }
+  .banner-row button {
+    padding: 7px 14px;
+    border: none;
+    border-radius: 8px;
+    background: var(--accent);
+    color: var(--accent-ink);
+    font-weight: 600;
+    font-size: 12px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .banner-note { font-size: 11px; color: var(--text-dim); margin-top: 6px; }
+
+  .dropzone {
+    border: 1.5px dashed var(--accent-line);
+    border-radius: var(--r-drop);
+    padding: 26px 16px;
+    text-align: center;
+    background: var(--accent-ghost);
+    margin-bottom: 14px;
+    cursor: text;
+  }
+  .dropzone.dragover { border-color: var(--accent); }
+  .dropzone .title { font-size: 13px; color: var(--text); margin-bottom: 4px; }
+  .dropzone .sub { font-size: 11px; color: var(--text-dim); }
+
+  .row { display: flex; gap: 8px; }
+
+  input[type="text"] {
+    flex: 1;
+    padding: 10px 12px;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--r-field);
+    font-size: 13px;
+    background: var(--surface);
+    color: var(--text);
+    outline: none;
+    font-family: inherit;
+  }
+  input[type="text"]::placeholder { color: var(--text-dim); }
+  input[type="text"]:focus { border-color: var(--accent); }
+  input[type="text"].error-border { border-color: var(--danger); }
+
+  button { font-family: inherit; }
+
+  #btn {
+    padding: 10px 18px;
+    border: none;
+    border-radius: var(--r-field);
+    background: var(--accent);
+    color: var(--accent-ink);
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  #btn:disabled {
+    background: var(--disabled-bg);
+    color: var(--disabled-text);
+    cursor: not-allowed;
+  }
+
+  #stopBtn {
+    padding: 10px 18px;
+    border: 1px solid var(--danger);
+    border-radius: var(--r-field);
+    background: transparent;
+    color: var(--danger);
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  #stopBtn:disabled { opacity: .6; cursor: not-allowed; }
+
+  .quality-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 14px;
+  }
+  .quality-row label { font-size: 12px; color: var(--text-dim); }
+  .quality-row select {
+    flex: 1;
+    padding: 8px 10px;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--r-field);
+    font-size: 12px;
+    background: var(--surface);
+    color: var(--text);
+    outline: none;
+    font-family: inherit;
+  }
+  .quality-row select:disabled { opacity: .6; }
+
+  #progressWrap { display: none; margin-top: 20px; }
+  .progress-head {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+  }
+  #progressStat { color: var(--accent); }
+  #progressBar {
+    height: 8px;
+    border-radius: 5px;
+    background: var(--surface);
+    overflow: hidden;
+  }
+  #progressFill {
+    height: 100%;
+    width: 0%;
+    background: var(--accent);
+    box-shadow: 0 0 8px rgba(61,220,132,.6);
+    transition: width .2s ease;
+  }
+
+  #status { margin-top: 14px; }
+  .msg-box {
+    border-radius: var(--r-card);
+    padding: 10px 12px;
+  }
+  .msg-box.danger { background: var(--danger-bg); border: 1px solid var(--danger-line); }
+  .msg-box.warn { background: var(--warn-bg); border: 1px solid var(--warn-line); }
+  .msg-box.ok { background: var(--ok-bg); border: 1px solid var(--ok-line); }
+  .msg-title { font-size: 13px; font-weight: 600; }
+  .msg-box.danger .msg-title { color: var(--danger); }
+  .msg-box.warn .msg-title { color: var(--warn); }
+  .msg-box.ok .msg-title { color: var(--text); }
+  .msg-box.ok .msg-action {
+    color: var(--accent);
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    font-size: 13px;
+    display: inline-block;
+    margin-top: 4px;
+  }
+  .msg-box details { margin-top: 6px; font-size: 11px; color: var(--text-dim); }
+  .msg-box summary { cursor: pointer; color: var(--text-dim); }
+  .msg-box .detail {
+    margin-top: 6px;
+    padding: 8px 10px;
+    background: var(--surface);
+    border-radius: 8px;
+    color: var(--text-dim);
+    font-family: Consolas, Menlo, monospace;
+    word-break: break-word;
+    white-space: pre-wrap;
+    font-size: 11px;
+  }
+
+  #footHint { margin-top: 20px; font-size: 11px; color: var(--text-faintest); }
+
+  /* История */
+  .hrow {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-card);
+    padding: 8px 10px;
+  }
+  .hrow + .hrow { margin-top: 8px; }
+  .hrow.cancelled { opacity: .6; }
+  .thumb {
+    width: 56px;
+    height: 36px;
+    border-radius: 6px;
+    flex: none;
+    background: repeating-linear-gradient(45deg, rgba(61,220,132,.1), rgba(61,220,132,.1) 6px, #1B1F23 6px, #1B1F23 12px);
+  }
+  .hmain { flex: 1; min-width: 0; }
+  .hmain .hname {
+    font-size: 12px;
+    color: var(--text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .hmain .hmeta { font-size: 10px; color: var(--text-faint); margin-top: 2px; }
+  .hmain .hbar {
+    height: 5px;
+    border-radius: 3px;
+    background: var(--surface-sunk);
+    margin-top: 5px;
+  }
+  .hmain .hbar-fill {
+    height: 100%;
+    border-radius: 3px;
+    background: var(--info);
+  }
+  .hpercent { font-size: 10px; color: var(--text-dim); flex: none; }
+  .haction {
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    flex: none;
+    background: none;
+    border: none;
+    font-family: inherit;
+    padding: 0;
+  }
+  .haction.stop { color: var(--danger); font-weight: normal; }
+  .haction.retry { color: var(--accent); }
+  .haction.folder { color: var(--accent); }
+  .haction.remove { color: var(--text-faint); font-size: 13px; font-weight: normal; }
+  .haction.confirm-yes { color: var(--danger); }
+  .haction.confirm-cancel { color: var(--text-dim); font-weight: normal; }
+  .hnote-error { font-size: 10px; color: var(--danger); margin-top: 4px; }
+
+  #historyEmpty {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 60px 0;
+  }
+  #historyEmpty .box {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    border: 2px solid #2A2F33;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  #historyEmpty .box .dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #2A2F33;
+  }
+  #historyEmpty .title { font-size: 13px; color: var(--text); }
+  #historyEmpty .sub { font-size: 11px; color: var(--text-faint); }
+  #historyLoadError { font-size: 11px; color: var(--text-dim); }
+
+  /* Настройки */
+  .setting { margin-bottom: 16px; }
+  .setting-label { font-size: 11px; color: var(--text-dim); margin-bottom: 6px; }
+  .pills { display: flex; gap: 6px; }
+  .pill {
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-size: 12px;
+    background: var(--surface);
+    border: 1px solid rgba(255,255,255,.08);
+    color: var(--text-dim);
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .pill.active {
+    background: var(--accent-soft);
+    color: var(--accent);
+    border: 1px solid rgba(61,220,132,.4);
+    font-weight: 600;
+  }
+  .setting-note { font-size: 11px; margin-top: 6px; color: var(--danger); min-height: 14px; }
+  #browseBtn {
+    padding: 10px 14px;
+    border: 1px solid rgba(255,255,255,.15);
+    border-radius: var(--r-field);
+    background: var(--surface);
+    color: var(--text);
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .setting-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+  .setting-row > span { font-size: 12px; color: var(--text); }
+  .toggle {
+    width: 36px;
+    height: 20px;
+    border-radius: 12px;
+    background: var(--disabled-bg);
+    position: relative;
+    border: none;
+    cursor: pointer;
+    flex: none;
+  }
+  .toggle .knob {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--text-faint);
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    transition: left .15s ease;
+  }
+  .toggle[aria-pressed="true"] { background: var(--accent); }
+  .toggle[aria-pressed="true"] .knob {
+    background: var(--accent-ink);
+    left: 18px;
+  }
+  .settings-foot {
+    font-size: 11px;
+    color: var(--text-faint);
+    border-top: 1px solid rgba(255,255,255,.08);
+    padding-top: 12px;
+  }
+</style>
+</head>
+<body data-desktop="{{ 'true' if desktop_mode else 'false' }}">
+  <div class="window">
+    <nav class="rail">
+      <button type="button" class="navitem active" data-screen="download">
+        <span class="navpill"><span class="navdot"></span></span>
+        <span>Скачать</span>
+      </button>
+      <button type="button" class="navitem" data-screen="history">
+        <span class="navpill"><span class="navdot"></span></span>
+        <span>История</span>
+      </button>
+      <button type="button" class="navitem" data-screen="settings">
+        <span class="navpill"><span class="navdot"></span></span>
+        <span>Настройки</span>
+      </button>
+    </nav>
+
+    <main class="content">
+      <section id="screen-download" class="screen active">
+        <h2 class="scrhead">Скачать видео по ссылке</h2>
+
+        {% if not ffmpeg_available %}
+        <div class="banner banner-warn" id="ffmpegBanner">
+          ffmpeg не найден — качество ограничено 720p. Положите ffmpeg.exe в папку bin рядом с app.py.
+        </div>
+        {% endif %}
+
+        <div class="banner banner-accent" id="updateBanner">
+          <div class="banner-row">
+            <span id="updateText"></span>
+            <button id="updateBtn">Обновить</button>
+          </div>
+          <div class="banner-note" id="updateNote"></div>
+        </div>
+
+        <div class="dropzone" id="dropZone">
+          <div class="title">Вставьте ссылку или перетащите её сюда</div>
+          <div class="sub">YouTube, VK, Twitch и другие</div>
+        </div>
+
+        <div class="row">
+          <input type="text" id="url" placeholder="https://...">
+          <button id="btn" disabled>Скачать</button>
+          <button id="stopBtn" style="display:none;">Стоп</button>
+        </div>
+
+        <div class="quality-row">
+          <label for="quality">Качество</label>
+          <select id="quality">
+            {% for height, label in quality_options %}
+            <option value="{{ height }}"{% if height == selected_height %} selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div id="progressWrap">
+          <div class="progress-head">
+            <span id="progressName">Загрузка…</span>
+            <span id="progressStat"></span>
+          </div>
+          <div id="progressBar"><div id="progressFill"></div></div>
+        </div>
+
+        <div id="status"></div>
+
+        <div id="footHint">Поддерживаются сайты, где работает yt-dlp.</div>
+      </section>
+
+      <section id="screen-history" class="screen">
+        <h2 class="scrhead">История и очередь</h2>
+        <div id="historyList"></div>
+        <div id="historyEmpty">
+          <div class="box"><div class="dot"></div></div>
+          <div class="title">Пока ничего не скачано</div>
+          <div class="sub">Ваши загрузки появятся здесь</div>
+        </div>
+      </section>
+
+      <section id="screen-settings" class="screen">
+        <h2 class="scrhead">Настройки</h2>
+
+        <div class="setting">
+          <div class="setting-label">Качество по умолчанию</div>
+          <div class="pills" id="qualityPills">
+            {% for height, label in quality_options %}
+            <button type="button" class="pill{% if height == selected_height %} active{% endif %}" data-height="{{ height }}">{{ height }}p</button>
+            {% endfor %}
+          </div>
+        </div>
+
+        <div class="setting">
+          <div class="setting-label">Папка загрузок</div>
+          <div class="row">
+            <input type="text" id="dirPath" value="{{ download_dir }}"{{ ' readonly' if desktop_mode else '' }}>
+            <button id="browseBtn" style="{{ '' if desktop_mode else 'display:none;' }}">Обзор</button>
+          </div>
+          <div class="setting-note" id="dirNote"></div>
+        </div>
+
+        <div class="setting-row">
+          <span>Автообновление</span>
+          <button type="button" class="toggle" id="autoUpdateToggle" aria-pressed="{{ 'true' if auto_update else 'false' }}">
+            <span class="knob"></span>
+          </button>
+        </div>
+
+        <div class="settings-foot">
+          {% if ffmpeg_available %}ffmpeg найден.{% else %}ffmpeg не найден.{% endif %}
+          Версия {{ app_version }}.
+          {% if max_filesize %}Лимит на файл — {{ max_filesize }}.{% endif %}
+        </div>
+      </section>
+    </main>
+  </div>
+
+<script>
+const btn = document.getElementById('btn');
+const stopBtn = document.getElementById('stopBtn');
+const urlInput = document.getElementById('url');
+const status = document.getElementById('status');
+const progressWrap = document.getElementById('progressWrap');
+const progressFill = document.getElementById('progressFill');
+const progressName = document.getElementById('progressName');
+const progressStat = document.getElementById('progressStat');
+const dropZone = document.getElementById('dropZone');
+const footHint = document.getElementById('footHint');
+const quality = document.getElementById('quality');
+
+const updateBanner = document.getElementById('updateBanner');
+const updateText = document.getElementById('updateText');
+const updateBtn = document.getElementById('updateBtn');
+const updateNote = document.getElementById('updateNote');
+
+const desktopMode = document.body.dataset.desktop === 'true';
+
+let pollTimer = null;
+let currentJobId = null;
+let updateTimer = null;
+let currentScreen = 'download';
+let historyTimer = null;
+
+/* ---------- переключение экранов ---------- */
+
+function showScreen(name) {
+  currentScreen = name;
+  document.querySelectorAll('.screen').forEach((el) => {
+    el.classList.toggle('active', el.id === 'screen-' + name);
+  });
+  document.querySelectorAll('.navitem').forEach((el) => {
+    el.classList.toggle('active', el.dataset.screen === name);
+  });
+
+  if (historyTimer) { clearInterval(historyTimer); historyTimer = null; }
+  if (name === 'history') {
+    loadHistory();
+    historyTimer = setInterval(loadHistory, 1000);
+  }
+}
+
+function pauseHistoryPolling() {
+  if (historyTimer) { clearInterval(historyTimer); historyTimer = null; }
+}
+
+function resumeHistoryPolling() {
+  if (currentScreen === 'history' && !historyTimer) {
+    historyTimer = setInterval(loadHistory, 1000);
+  }
+}
+
+document.querySelectorAll('.navitem').forEach((el) => {
+  el.addEventListener('click', () => showScreen(el.dataset.screen));
+});
+
+/* ---------- экран «Скачать» ---------- */
+
+function formatSpeed(bytesPerSec) {
+  if (!bytesPerSec) return '';
+  const mb = bytesPerSec / (1024 * 1024);
+  if (mb >= 1) return mb.toFixed(1) + ' МБ/с';
+  return (bytesPerSec / 1024).toFixed(0) + ' КБ/с';
+}
+
+function setFormState(state) {
+  const busy = state === 'downloading';
+  btn.style.display = busy ? 'none' : 'inline-block';
+  btn.disabled = urlInput.value.trim() === '';
+  stopBtn.style.display = busy ? 'inline-block' : 'none';
+  urlInput.readOnly = busy;
+  quality.disabled = busy;
+  progressWrap.style.display = busy ? 'block' : 'none';
+  dropZone.style.display = (state === 'idle' && urlInput.value.trim() === '') ? 'block' : 'none';
+  urlInput.classList.toggle('error-border', state === 'error');
+
+  if (state === 'downloading') {
+    footHint.textContent = 'Можно остановить в любой момент — файл не сохранится.';
+  } else {
+    footHint.textContent = 'Поддерживаются сайты, где работает yt-dlp.';
+  }
+}
+
+function errorKindClass(kind) {
+  return kind === 'disk' ? 'warn' : 'danger';
+}
+
+function showError(message, detail, kind) {
+  stopPolling();
+  setFormState('error');
+  status.innerHTML = '';
+
+  const box = document.createElement('div');
+  box.className = 'msg-box ' + errorKindClass(kind);
+
+  const title = document.createElement('div');
+  title.className = 'msg-title';
+  title.textContent = message || 'Ошибка загрузки';
+  box.appendChild(title);
+
+  if (detail) {
+    const det = document.createElement('details');
+    const summary = document.createElement('summary');
+    summary.textContent = 'Подробности';
+    const body = document.createElement('div');
+    body.className = 'detail';
+    body.textContent = detail;
+    det.appendChild(summary);
+    det.appendChild(body);
+    box.appendChild(det);
+  }
+  status.appendChild(box);
+}
+
+function showFinished(filename, title) {
+  status.innerHTML = '';
+  const box = document.createElement('div');
+  box.className = 'msg-box ok';
+
+  const text = document.createElement('div');
+  text.className = 'msg-title';
+  text.textContent = 'Готово: ' + title;
+  box.appendChild(text);
+
+  if (desktopMode) {
+    const link = document.createElement('a');
+    link.href = '#';
+    link.className = 'msg-action';
+    link.textContent = 'Показать в папке';
+    link.addEventListener('click', (ev) => {
+      ev.preventDefault();
+      fetch('/api/open-folder/' + encodeURIComponent(filename), { method: 'POST' });
+    });
+    box.appendChild(link);
+  } else {
+    const link = document.createElement('a');
+    link.href = '/api/file/' + encodeURIComponent(filename);
+    link.className = 'msg-action';
+    link.textContent = 'Скачать файл';
+    box.appendChild(link);
+  }
+  status.appendChild(box);
+}
+
+function stopPolling() {
+  if (pollTimer) {
+    clearInterval(pollTimer);
+    pollTimer = null;
+  }
+}
+
+async function pollProgress() {
+  if (!currentJobId) return;
+  try {
+    const res = await fetch('/api/progress/' + currentJobId);
+    const data = await res.json();
+
+    if (!res.ok) {
+      showError(data.error || 'Ошибка', data.error_detail);
+      return;
+    }
+
+    const playlistPart = (data.playlist_index && data.playlist_count)
+      ? 'Видео ' + data.playlist_index + ' из ' + data.playlist_count + ' · '
+      : '';
+    progressName.textContent = playlistPart + (data.current_name || 'Загрузка…');
+    if (data.progress !== null && data.progress !== undefined) {
+      progressFill.style.width = data.progress + '%';
+      progressStat.textContent = data.progress + '% · ' + formatSpeed(data.speed);
+    } else {
+      progressStat.textContent = formatSpeed(data.speed);
+    }
+
+    if (data.status === 'finished') {
+      stopPolling();
+      setFormState('idle');
+      showFinished(data.filename, data.title);
+      currentJobId = null;
+      if (currentScreen === 'history') loadHistory();
+    } else if (data.status === 'cancelled') {
+      stopPolling();
+      setFormState('idle');
+      status.innerHTML = '';
+      status.textContent = 'Скачивание остановлено';
+      currentJobId = null;
+    } else if (data.status === 'error') {
+      showError(data.error, data.error_detail, data.error_kind);
+      currentJobId = null;
+    }
+  } catch (e) {
+    showError('Ошибка сети: ' + e.message);
+  }
+}
+
+async function startDownload() {
+  const url = urlInput.value.trim();
+  if (!url) return;
+
+  setFormState('downloading');
+  status.innerHTML = '';
+  progressFill.style.width = '0%';
+  progressName.textContent = 'Загрузка…';
+  progressStat.textContent = '';
+
+  try {
+    const res = await fetch('/api/download', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url, quality: Number(quality.value) })
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      showError(data.error, data.error_detail);
+      return;
+    }
+
+    currentJobId = data.job_id;
+    pollTimer = setInterval(pollProgress, 500);
+  } catch (e) {
+    showError('Ошибка сети: ' + e.message);
+  }
+}
+
+async function stopDownload() {
+  if (!currentJobId) return;
+  stopBtn.disabled = true;
+  try {
+    await fetch('/api/cancel/' + currentJobId, { method: 'POST' });
+  } finally {
+    stopBtn.disabled = false;
+  }
+}
+
+/* ---------- дропзона и вставка ---------- */
+
+function goToUrl(text) {
+  urlInput.value = text;
+  setFormState('idle');
+}
+
+dropZone.addEventListener('click', () => urlInput.focus());
+dropZone.addEventListener('dragover', (e) => {
+  e.preventDefault();
+  dropZone.classList.add('dragover');
+});
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop', (e) => {
+  e.preventDefault();
+  dropZone.classList.remove('dragover');
+  const text = e.dataTransfer.getData('text');
+  if (text) goToUrl(text);
+});
+document.addEventListener('paste', (e) => {
+  if (document.activeElement === urlInput) return;
+  const text = e.clipboardData.getData('text');
+  if (text) goToUrl(text);
+});
+urlInput.addEventListener('input', () => {
+  btn.disabled = urlInput.value.trim() === '';
+  dropZone.style.display = urlInput.value.trim() === '' ? 'block' : 'none';
+});
+
+/* ---------- обновления ---------- */
+
+function renderUpdate(data) {
+  if (data.state === 'available') {
+    updateBanner.style.display = 'block';
+    updateText.textContent = 'Есть новая версия ' + data.latest_version +
+                             ' (у вас ' + data.current_version + ')';
+    updateBtn.style.display = 'inline-block';
+    updateBtn.disabled = false;
+    updateNote.textContent = '';
+  } else if (data.state === 'downloading') {
+    updateBanner.style.display = 'block';
+    updateBtn.disabled = true;
+    updateNote.textContent = 'Скачиваю установщик… ' +
+      (data.progress === null || data.progress === undefined ? '' : data.progress + '%');
+  } else if (data.state === 'installing') {
+    updateBanner.style.display = 'block';
+    updateBtn.disabled = true;
+    updateNote.textContent = 'Установщик запущен, приложение закроется.';
+  } else if (data.state === 'install_error') {
+    updateBanner.style.display = 'block';
+    updateBtn.disabled = false;
+    updateNote.textContent = data.error || 'Не удалось обновиться';
+  } else {
+    // up_to_date, no_releases, no_asset, unavailable, disabled — молчим.
+    updateBanner.style.display = 'none';
+  }
+
+  if (data.state !== 'checking' && data.state !== 'downloading' && updateTimer) {
+    clearInterval(updateTimer);
+    updateTimer = null;
+  }
+}
+
+async function checkUpdate() {
+  try {
+    const res = await fetch('/api/update');
+    renderUpdate(await res.json());
+  } catch (e) {
+    // Обновления не критичны: если сервис не ответил, просто живём дальше.
+  }
+}
+
+function watchUpdate() {
+  checkUpdate();
+  if (!updateTimer) updateTimer = setInterval(checkUpdate, 1500);
+}
+
+updateBtn.addEventListener('click', async () => {
+  updateBtn.disabled = true;
+  try {
+    await fetch('/api/update/install', { method: 'POST' });
+  } catch (e) {
+    updateNote.textContent = 'Не удалось запустить обновление';
+    updateBtn.disabled = false;
+    return;
+  }
+  watchUpdate();
+});
+
+/* ---------- качество: селект и пилюли синхронно ---------- */
+
+function applyQuality(height) {
+  quality.value = String(height);
+  document.querySelectorAll('.pill').forEach((el) => {
+    el.classList.toggle('active', Number(el.dataset.height) === Number(height));
+  });
+  fetch('/api/quality', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ quality: Number(height) })
+  });
+}
+
+quality.addEventListener('change', () => applyQuality(quality.value));
+document.querySelectorAll('.pill').forEach((el) => {
+  el.addEventListener('click', () => applyQuality(el.dataset.height));
+});
+
+/* ---------- история ---------- */
+
+const historyList = document.getElementById('historyList');
+const historyEmpty = document.getElementById('historyEmpty');
+
+function formatMeta(item) {
+  const parts = [];
+  if (item.height) parts.push(item.height + 'p');
+  parts.push(item.size_text);
+  parts.push(item.when);
+  return parts.join(' · ');
+}
+
+function buildActiveRow(item) {
+  const row = document.createElement('div');
+  row.className = 'hrow';
+
+  const thumb = document.createElement('div');
+  thumb.className = 'thumb';
+  row.appendChild(thumb);
+
+  const main = document.createElement('div');
+  main.className = 'hmain';
+  const name = document.createElement('div');
+  name.className = 'hname';
+  name.textContent = item.title;
+  main.appendChild(name);
+  const bar = document.createElement('div');
+  bar.className = 'hbar';
+  const fill = document.createElement('div');
+  fill.className = 'hbar-fill';
+  fill.style.width = (item.progress || 0) + '%';
+  bar.appendChild(fill);
+  main.appendChild(bar);
+  row.appendChild(main);
+
+  const percent = document.createElement('span');
+  percent.className = 'hpercent';
+  percent.textContent = (item.progress !== null && item.progress !== undefined) ? item.progress + '%' : '';
+  row.appendChild(percent);
+
+  const stop = document.createElement('button');
+  stop.className = 'haction stop';
+  stop.textContent = 'Стоп';
+  stop.addEventListener('click', async () => {
+    await fetch('/api/cancel/' + item.job_id, { method: 'POST' });
+    loadHistory();
+  });
+  row.appendChild(stop);
+
+  return row;
+}
+
+function buildCancelledRow(item) {
+  const row = document.createElement('div');
+  row.className = 'hrow cancelled';
+
+  const thumb = document.createElement('div');
+  thumb.className = 'thumb';
+  row.appendChild(thumb);
+
+  const main = document.createElement('div');
+  main.className = 'hmain';
+  const name = document.createElement('div');
+  name.className = 'hname';
+  name.textContent = item.title;
+  main.appendChild(name);
+  const meta = document.createElement('div');
+  meta.className = 'hmeta';
+  meta.textContent = 'Остановлено пользователем';
+  main.appendChild(meta);
+  row.appendChild(main);
+
+  const retry = document.createElement('button');
+  retry.className = 'haction retry';
+  retry.textContent = 'Повторить';
+  retry.addEventListener('click', async () => {
+    const res = await fetch('/api/download', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: item.url, quality: item.height })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      currentJobId = data.job_id;
+      urlInput.value = item.url;
+      setFormState('downloading');
+      status.innerHTML = '';
+      progressFill.style.width = '0%';
+      progressName.textContent = 'Загрузка…';
+      progressStat.textContent = '';
+      pollTimer = setInterval(pollProgress, 500);
+      showScreen('download');
+    }
+  });
+  row.appendChild(retry);
+
+  return row;
+}
+
+function buildDoneRow(item) {
+  const row = document.createElement('div');
+  row.className = 'hrow';
+
+  const thumb = document.createElement('div');
+  thumb.className = 'thumb';
+  row.appendChild(thumb);
+
+  const main = document.createElement('div');
+  main.className = 'hmain';
+  const name = document.createElement('div');
+  name.className = 'hname';
+  name.textContent = item.title;
+  main.appendChild(name);
+  const meta = document.createElement('div');
+  meta.className = 'hmeta';
+  meta.textContent = formatMeta(item);
+  main.appendChild(meta);
+  const errNote = document.createElement('div');
+  errNote.className = 'hnote-error';
+  main.appendChild(errNote);
+  row.appendChild(main);
+
+  const actions = document.createElement('div');
+  actions.style.display = 'flex';
+  actions.style.gap = '8px';
+  actions.style.alignItems = 'center';
+
+  const folder = document.createElement('button');
+  folder.className = 'haction folder';
+  folder.textContent = 'Папка';
+  folder.addEventListener('click', () => {
+    fetch('/api/open-folder/' + encodeURIComponent(item.filename), { method: 'POST' });
+  });
+  actions.appendChild(folder);
+
+  const remove = document.createElement('button');
+  remove.className = 'haction remove';
+  remove.textContent = '×';
+  remove.addEventListener('click', () => {
+    // Полный список перерисовывается раз в секунду (loadHistory); пока
+    // открыт вопрос «Удалить файл?», опрос приостанавливаем — иначе
+    // подтверждение может исчезнуть посреди клика пользователя.
+    pauseHistoryPolling();
+
+    actions.innerHTML = '';
+    const label = document.createElement('span');
+    label.style.fontSize = '11px';
+    label.style.color = 'var(--text-dim)';
+    label.textContent = 'Удалить файл? ';
+    actions.appendChild(label);
+
+    const yes = document.createElement('button');
+    yes.className = 'haction confirm-yes';
+    yes.textContent = 'Да';
+    yes.addEventListener('click', async () => {
+      const res = await fetch('/api/history/delete/' + encodeURIComponent(item.filename), { method: 'POST' });
+      const data = await res.json();
+      if (res.ok) {
+        row.remove();
+        if (!historyList.children.length) historyEmpty.style.display = 'flex';
+      } else {
+        errNote.textContent = data.error || 'Не удалось удалить файл';
+      }
+      resumeHistoryPolling();
+    });
+    actions.appendChild(yes);
+
+    const cancel = document.createElement('button');
+    cancel.className = 'haction confirm-cancel';
+    cancel.textContent = 'Отмена';
+    cancel.addEventListener('click', () => {
+      actions.innerHTML = '';
+      actions.appendChild(folder);
+      actions.appendChild(remove);
+      resumeHistoryPolling();
+    });
+    actions.appendChild(cancel);
+  });
+  actions.appendChild(remove);
+
+  row.appendChild(actions);
+  return row;
+}
+
+async function loadHistory() {
+  let data;
+  try {
+    const res = await fetch('/api/history');
+    data = await res.json();
+  } catch (e) {
+    historyList.innerHTML = '';
+    const note = document.createElement('div');
+    note.id = 'historyLoadError';
+    note.textContent = 'Не удалось получить список загрузок';
+    historyList.appendChild(note);
+    return;
+  }
+
+  historyList.innerHTML = '';
+  const items = data.items || [];
+  historyEmpty.style.display = items.length ? 'none' : 'flex';
+
+  items.forEach((item) => {
+    let row;
+    if (item.kind === 'active') row = buildActiveRow(item);
+    else if (item.kind === 'cancelled') row = buildCancelledRow(item);
+    else row = buildDoneRow(item);
+    historyList.appendChild(row);
+  });
+}
+
+/* ---------- настройки: папка загрузок ---------- */
+
+const dirPath = document.getElementById('dirPath');
+const dirNote = document.getElementById('dirNote');
+const browseBtn = document.getElementById('browseBtn');
+
+async function saveDownloadDir(path) {
+  const res = await fetch('/api/download-dir', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ path })
+  });
+  const data = await res.json();
+  if (res.ok) {
+    dirNote.textContent = '';
+    dirPath.value = data.download_dir;
+  } else {
+    dirNote.textContent = data.error || 'Не удалось сохранить папку';
+  }
+}
+
+if (browseBtn.style.display !== 'none') {
+  browseBtn.addEventListener('click', async () => {
+    const res = await fetch('/api/browse-folder', { method: 'POST' });
+    const data = await res.json();
+    if (!res.ok) {
+      dirNote.textContent = data.error || 'Не удалось открыть диалог';
+      return;
+    }
+    if (data.path) await saveDownloadDir(data.path);
+  });
+}
+
+if (!desktopMode) {
+  const prevValue = { value: dirPath.value };
+  dirPath.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') dirPath.blur();
+  });
+  dirPath.addEventListener('blur', async () => {
+    if (dirPath.value === prevValue.value) return;
+    await saveDownloadDir(dirPath.value);
+    prevValue.value = dirPath.value;
+  });
+}
+
+/* ---------- настройки: автообновление ---------- */
+
+const autoUpdateToggle = document.getElementById('autoUpdateToggle');
+autoUpdateToggle.addEventListener('click', async () => {
+  const enabled = autoUpdateToggle.getAttribute('aria-pressed') !== 'true';
+  const res = await fetch('/api/auto-update', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ enabled })
+  });
+  const data = await res.json();
+  autoUpdateToggle.setAttribute('aria-pressed', data.auto_update ? 'true' : 'false');
+  if (data.auto_update) watchUpdate();
+  else updateBanner.style.display = 'none';
+});
+
+/* ---------- запуск ---------- */
+
+setFormState('idle');
+watchUpdate();
+
+btn.addEventListener('click', startDownload);
+stopBtn.addEventListener('click', stopDownload);
+urlInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') startDownload();
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+downloads/
+__pycache__/
+*.pyc
+.venv/
+.claude
+bin/
+build/
+dist/
+settings.json
+history.json
+installer/MicrosoftEdgeWebview2Setup.exe
+00-inbox/
+CLAUDE.md
+BUILD.md
