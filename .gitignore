@@ -8,6 +8,7 @@ build/
 dist/
 settings.json
 history.json
+logs/
 installer/MicrosoftEdgeWebview2Setup.exe
 00-inbox/
 CLAUDE.md

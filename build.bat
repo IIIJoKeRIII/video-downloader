@@ -10,7 +10,7 @@ if not exist "bin\ffmpeg.exe" (
 python -m PyInstaller --noconfirm --clean video-downloader.spec
 if errorlevel 1 exit /b 1
 
-for /f "usebackq delims=" %%v in (`python -c "import app_version; print(app_version.APP_VERSION)"`) do set APP_VERSION=%%v
+for /f "usebackq delims=" %%v in (`python -c "from video_downloader.version import APP_VERSION; print(APP_VERSION)"`) do set APP_VERSION=%%v
 echo Версия: %APP_VERSION%
 
 set "ISCC=C:\Program Files (x86)\Inno Setup 6\ISCC.exe"

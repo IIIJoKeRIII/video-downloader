@@ -12,11 +12,11 @@ if not os.path.isfile(ICON):
     ICON = None
 
 a = Analysis(
-    ['desktop.py'],
-    pathex=[],
+    ['video_downloader/__main__.py'],
+    pathex=[SPECPATH],
     binaries=[],
     datas=[
-        ('templates', 'templates'),
+        ('ui', 'ui'),
         ('bin/ffmpeg.exe', 'bin'),
     ],
     # Отдельные hiddenimports не нужны: yt-dlp и pywebview везут свои

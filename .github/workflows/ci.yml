@@ -1,0 +1,21 @@
+name: Проверки
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  smoke:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    env:
+      # Консоль раннера не в UTF-8: без этого print с кириллицей
+      # в проверках падает с UnicodeEncodeError.
+      PYTHONUTF8: "1"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - run: python -m pip install -r requirements.txt
+      - run: python tests/smoke_test.py

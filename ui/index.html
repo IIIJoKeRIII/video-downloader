@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Video Downloader</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%233DDC84'/%3E%3Cg stroke='%230F1B14' stroke-width='7' stroke-linecap='round' stroke-linejoin='round' fill='none'%3E%3Cpath d='M32 15V37'/%3E%3Cpath d='M21 30 32 41 43 30'/%3E%3Cpath d='M18 49H46' stroke-width='6'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body class="booting">
+  <div class="window">
+    <nav class="rail">
+      <button type="button" class="navitem active" data-screen="download">
+        <span class="navpill"><span class="navdot"></span></span>
+        <span>Скачать</span>
+      </button>
+      <button type="button" class="navitem" data-screen="history">
+        <span class="navpill"><span class="navdot"></span></span>
+        <span>История</span>
+      </button>
+      <button type="button" class="navitem" data-screen="settings">
+        <span class="navpill"><span class="navdot"></span></span>
+        <span>Настройки</span>
+      </button>
+    </nav>
+
+    <main class="content">
+      <section id="screen-download" class="screen active">
+        <h2 class="scrhead">Скачать видео по ссылке</h2>
+
+        <div class="banner banner-warn" id="ffmpegBanner" hidden>
+          ffmpeg не найден — качество ограничено 720p. Положите ffmpeg.exe в папку bin в корне проекта.
+        </div>
+
+        <div class="banner banner-accent" id="updateBanner">
+          <div class="banner-row">
+            <span id="updateText"></span>
+            <button id="updateBtn">Обновить</button>
+          </div>
+          <div class="banner-note" id="updateNote"></div>
+        </div>
+
+        <div class="dropzone" id="dropZone">
+          <div class="title">Вставьте ссылку или перетащите её сюда</div>
+          <div class="sub">YouTube, VK, Twitch и другие</div>
+        </div>
+
+        <div class="row">
+          <input type="text" id="url" placeholder="https://...">
+          <button id="btn" disabled>Скачать</button>
+          <button id="stopBtn" style="display:none;">Стоп</button>
+        </div>
+
+        <div class="quality-row">
+          <label for="quality">Качество</label>
+          <select id="quality"></select>
+        </div>
+
+        <div id="progressWrap">
+          <div class="progress-head">
+            <span id="progressName">Загрузка…</span>
+            <span id="progressStat"></span>
+          </div>
+          <div id="progressBar"><div id="progressFill"></div></div>
+        </div>
+
+        <div id="status"></div>
+
+        <div id="footHint">Поддерживаются сайты, где работает yt-dlp.</div>
+      </section>
+
+      <section id="screen-history" class="screen">
+        <h2 class="scrhead">История и очередь</h2>
+        <div id="historyList"></div>
+        <div id="historyEmpty">
+          <div class="box"><div class="dot"></div></div>
+          <div class="title">Пока ничего не скачано</div>
+          <div class="sub">Ваши загрузки появятся здесь</div>
+        </div>
+      </section>
+
+      <section id="screen-settings" class="screen">
+        <h2 class="scrhead">Настройки</h2>
+
+        <div class="setting">
+          <div class="setting-label">Качество по умолчанию</div>
+          <div class="pills" id="qualityPills"></div>
+        </div>
+
+        <div class="setting">
+          <div class="setting-label">Папка загрузок</div>
+          <div class="row">
+            <input type="text" id="dirPath" readonly>
+            <button id="browseBtn">Обзор</button>
+          </div>
+          <div class="setting-note" id="dirNote"></div>
+        </div>
+
+        <div class="setting-row">
+          <span>Автообновление</span>
+          <button type="button" class="toggle" id="autoUpdateToggle" aria-pressed="false">
+            <span class="knob"></span>
+          </button>
+        </div>
+
+        <div class="settings-foot" id="settingsFoot"></div>
+      </section>
+    </main>
+  </div>
+
+<script src="app.js"></script>
+</body>
+</html>

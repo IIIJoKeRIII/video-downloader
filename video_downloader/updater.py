@@ -2,7 +2,7 @@
 
 Проверка идёт в фоновом потоке: сеть может не ответить, а окно приложения
 обязано открыться в любом случае. Результат складывается в _state, наружу
-его отдаёт app.py через /api/update.
+его отдаёт Api.get_update_state.
 """
 import os
 import re
@@ -12,7 +12,7 @@ import threading
 
 import requests
 
-from app_version import APP_VERSION
+from video_downloader.version import APP_VERSION
 
 # Откуда берём релизы. Репозиторий публичный, токен не нужен.
 GITHUB_OWNER = "IIIJoKeRIII"
